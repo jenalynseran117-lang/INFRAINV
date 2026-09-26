@@ -86,19 +86,26 @@
         opacity: 0;
         transform: scale(0.5);
         filter: drop-shadow(0 0 18px rgba(201, 162, 75, 0.35));
-        animation: preloaderPop 0.8s cubic-bezier(.34,1.56,.64,1) forwards 0.3s;
+        animation: preloaderPop 0.8s cubic-bezier(.34, 1.56, .64, 1) forwards 0.3s;
     }
 
     @keyframes preloaderRingIn {
-        to { opacity: 1; }
+        to {
+            opacity: 1;
+        }
     }
 
     @keyframes preloaderSpin {
-        to { transform: rotate(360deg); }
+        to {
+            transform: rotate(360deg);
+        }
     }
 
     @keyframes preloaderPop {
-        to { opacity: 1; transform: scale(1); }
+        to {
+            opacity: 1;
+            transform: scale(1);
+        }
     }
 
     .preloader-brand {
@@ -147,13 +154,27 @@
     }
 
     @keyframes preloaderLetterWave {
-        0%, 100% { transform: translateY(0); }
-        50%      { transform: translateY(-6px); }
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-6px);
+        }
     }
 
     @keyframes preloaderFadeUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .preloader-progress {
@@ -178,13 +199,13 @@
         margin-top: 20px;
         height: calc(var(--s)*0.9);
         width: calc(var(--s)*5);
-        --v1: transparent,#000 0.5deg 108deg,#0000 109deg;
-        --v2: transparent,#000 0.5deg 36deg,#0000 37deg;
+        --v1: transparent, #000 0.5deg 108deg, #0000 109deg;
+        --v2: transparent, #000 0.5deg 36deg, #0000 37deg;
         -webkit-mask:
-            conic-gradient(from 54deg  at calc(var(--s)*0.68) calc(var(--s)*0.57), var(--v1)),
-            conic-gradient(from 90deg  at calc(var(--s)*0.02) calc(var(--s)*0.35), var(--v2)),
-            conic-gradient(from 126deg at calc(var(--s)*0.5)  calc(var(--s)*0.7), var(--v1)),
-            conic-gradient(from 162deg at calc(var(--s)*0.5)  0, var(--v2));
+            conic-gradient(from 54deg at calc(var(--s)*0.68) calc(var(--s)*0.57), var(--v1)),
+            conic-gradient(from 90deg at calc(var(--s)*0.02) calc(var(--s)*0.35), var(--v2)),
+            conic-gradient(from 126deg at calc(var(--s)*0.5) calc(var(--s)*0.7), var(--v1)),
+            conic-gradient(from 162deg at calc(var(--s)*0.5) 0, var(--v2));
         -webkit-mask-size: var(--s) var(--s);
         -webkit-mask-composite: xor, destination-over;
         mask-composite: exclude, add;
@@ -195,7 +216,11 @@
     }
 
     @keyframes preloaderStarFill {
-        90%, 100% { background-size: 100% 100%; }
+
+        90%,
+        100% {
+            background-size: 100% 100%;
+        }
     }
 
     /* --- DYNAMIC BACKGROUND GRADIENT ANIMATION --- */
@@ -855,7 +880,9 @@
     </div>
     <div class="preloader-brand"></div>
     <div class="preloader-text" id="preloaderText"></div>
-    <div class="preloader-progress"><div class="preloader-progress-bar" id="preloaderProgressBar"></div></div>
+    <div class="preloader-progress">
+        <div class="preloader-progress-bar" id="preloaderProgressBar"></div>
+    </div>
     <div class="preloader-star-loader"></div>
 </div>
 
@@ -898,6 +925,7 @@
             }
 
             let i = 0;
+
             function showNextMessage() {
                 if (i >= messages.length || !textEl) return;
                 textEl.classList.remove('show');
@@ -954,7 +982,7 @@
                 x-transition:leave="transition ease-in duration-300"
                 x-transition:leave-end="opacity-0"
                 class="text-xs uppercase tracking-[0.25em] font-bold mb-4" style="color: var(--gold);">
-                Infrastructure &amp; Supply Office
+                Building Repair and Infrastructure Office &amp; Supply Office
             </span>
 
             <div x-show="heroShown"
@@ -1020,8 +1048,13 @@
                 <form id="loginForm" method="POST" action="{{ route('login') }}" class="space-y-5">
                     @csrf
 
+                    {{-- Status message (e.g. after password reset) --}}
+                    @if (session('status'))
+                    <p style="font-size:0.875rem;font-weight:500;color:#067647;background:#ecfdf3;border:1px solid #abefc6;padding:12px;border-radius:8px;">
+                        {{ session('status') }}
+                    </p>
+                    @endif
 
-                    {{-- Role --}}
                     {{-- Role --}}
                     <div>
                         <label class="block text-xs uppercase tracking-widest font-bold text-gray-500 mb-2 ml-1">
@@ -1035,6 +1068,7 @@
                             <option value="Inspector">Inspector</option>
                         </select>
                     </div>
+
                     {{-- Errors --}}
                     @if ($errors->any())
                     <p class="text-red-600 text-sm font-medium bg-red-50 border border-red-100 p-3 rounded-lg">
@@ -1058,6 +1092,14 @@
                         </label>
                         <input type="password" name="password" placeholder="••••••••" required
                             class="input-premium w-full px-5 py-4 rounded-xl outline-none">
+
+                        {{-- Forgot password link --}}
+                        <div style="text-align:right;margin-top:10px;">
+                            <a href="{{ route('password.request') }}"
+                                style="font-size:0.85rem;font-weight:600;color:var(--navy);text-decoration:underline;text-underline-offset:3px;">
+                                Forgot password?
+                            </a>
+                        </div>
                     </div>
 
                     {{-- Standard reCAPTCHA v2 Checkbox ("I'm not a robot") --}}
@@ -1321,7 +1363,7 @@
         class="max-w-7xl mx-auto grid md:grid-cols-4 gap-12 mb-12">
         <div class="md:col-span-2">
             <div class="flex items-center gap-3 mb-4">
-                <img src="{{ asset('PICTURE/IMG_SEGMENT_20260828_164427.png') }}" alt="Logo" class="w-8 h-8 object-contain">
+                <img src="{{ asset('PICTURE/LOGOS.png') }}" alt="Logo" class="w-8 h-8 object-contain">
                 <span class="footer-brand text-xl">INFRA-INV</span>
             </div>
             <p class="text-gray-500 text-sm leading-relaxed max-w-sm">
@@ -1330,23 +1372,19 @@
         </div>
 
         <div>
-            <h5 class="footer-heading">Company</h5>
+            <h5 class="footer-heading">More</h5>
             <a href="#about" class="footer-link">About Us</a>
             <a href="#services" class="footer-link">Services</a>
         </div>
 
-        <div>
-            <h5 class="footer-heading">Legal</h5>
-            <a href="#" class="footer-link">Privacy Policy</a>
-            <a href="#" class="footer-link">Terms of Service</a>
-        </div>
+        
     </div>
 
     <div class="section-divider mb-8"></div>
 
     <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center text-gray-500 text-xs uppercase tracking-wider gap-4">
-        <p>&copy; 2026 InfraOffice. All rights reserved.</p>
-        <p style="color: var(--gold);">Infrastructure &amp; Supply Office</p>
+        <p>&copy; 2026 INFRA-INV. All rights reserved.</p>
+        <p style="color: var(--gold);">Building Repair and Infrastructure Office &amp; Supply Office</p>
     </div>
 </footer>
 

@@ -1,12 +1,12 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\Auth\PasswordCodeController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Supply\SupplyController;
 use App\Http\Controllers\Inspector\InspectorController;
 use App\Http\Controllers\WorkNoteController;
-use Symfony\Component\Mime\Message;
 
 /*
 |--------------------------------------------------------------------------
@@ -49,8 +49,6 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 
 
-
-
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -58,14 +56,12 @@ Route::middleware('auth')->group(function () {
 });
 
 
-
 // admin routes here 
-Route::namespace('App\Http\Controllers\Admin')->prefix('admin')->name('admin.')->group(function () {
+Route::namespace('App\Http\Controllers\Admin')->prefix('admin')->name('admin.')->middleware(['auth', 'verified'])->group(function () {
 
     // add routes here for admin 
     Route::resource('/users', 'UserController', ['except' => ['create', 'store', 'destroy']]);
     Route::get('/userfeedbacks', 'UserController@userfeedback')->name('userfeedback');
-
 
 
     Route::get('/PRManagement', 'PRManagementController@index')->name('PRManagement');
@@ -79,8 +75,6 @@ Route::namespace('App\Http\Controllers\Admin')->prefix('admin')->name('admin.')-
 
     Route::get('/IssueMaterial/issueindex', 'PRManagementController@IssueIndex')
         ->name('IssueMaterial');
-
-    
 
 
     Route::get('/AuditTrial', 'adminbuttonCRTL@AuditIndex')
@@ -101,8 +95,6 @@ Route::namespace('App\Http\Controllers\Admin')->prefix('admin')->name('admin.')-
         ->name('FinalSubmit');
 
 
-
-
     Route::get('/Report', 'adminbuttonCRTL@ReportIndex')
         ->name('Report');
 
@@ -115,13 +107,6 @@ Route::namespace('App\Http\Controllers\Admin')->prefix('admin')->name('admin.')-
     // trait; it just had no route pointing at it yet.
     Route::get('/WeeklyAudit', 'PRManagementController@WeeklyIndex')
         ->name('WeeklyAudit');
-
-
-
-
-
-
-
 
 
     Route::prefix('Message')->name('Message')->group(function () {
@@ -143,6 +128,7 @@ Route::namespace('App\Http\Controllers\Admin')->prefix('admin')->name('admin.')-
 Route::namespace('App\Http\Controllers\Supply')
     ->prefix('supply')
     ->name('supply.')
+    ->middleware(['auth', 'verified'])
     ->group(function () {
 
         // 1. Gawin nating Controller-based ang main dashboard route
@@ -176,13 +162,10 @@ Route::namespace('App\Http\Controllers\Supply')
     });
 
 
-
-
-
 Route::namespace('App\Http\Controllers\Inspector')
     ->prefix('inspector')
     ->name('inspector.')
-
+    ->middleware(['auth', 'verified'])
     ->group(function () {
 
         // Now controller-based so $stats (pending/approved/rejected/remote)
@@ -209,7 +192,6 @@ Route::namespace('App\Http\Controllers\Inspector')
         Route::post('/purchase-order/{id}/item/{index}/status', 'InspectorController@updateItemStatus')->name('item.status');
 
 
-
         Route::prefix('Message')->name('Message')->group(function () {
             route::get('worknotes', 'InspectorMessageController@MessageIndex')->name('worknotes');
 
@@ -223,41 +205,28 @@ Route::namespace('App\Http\Controllers\Inspector')
         });
     });
 
+// Forgot password by 6-digit code (replaces the old Breeze link-based routes)
+Route::middleware('guest')->group(function () {
+    // Step 1: enter email  (landing page "Forgot password?" links here)
+    Route::get('forgot-password', [PasswordCodeController::class, 'create'])
+        ->name('password.request');
 
+    Route::post('forgot-password', [PasswordCodeController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('password.email');
 
+    // Step 2: enter the emailed code + new password
+    Route::get('reset-password-code', [PasswordCodeController::class, 'showCode'])
+        ->name('password.code');
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    Route::post('reset-password-code', [PasswordCodeController::class, 'update'])
+        ->middleware('throttle:10,1')
+        ->name('password.code.update');
+});
 
 // users routes here 
 
 require __DIR__ . '/auth.php';
-
-
-
 
 
 //testing

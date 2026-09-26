@@ -5,6 +5,8 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\View;
 use App\View\Composers\WorkNoteComposer;
+use App\Models\User;
+use App\Observers\UserObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -28,5 +30,7 @@ class AppServiceProvider extends ServiceProvider
         View::composer('layouts.admin.app', WorkNoteComposer::class);
         View::composer('layouts.Supply.app', WorkNoteComposer::class);
         View::composer('layouts.Inspector.app', WorkNoteComposer::class);
+    
+        User::observe(UserObserver::class);
     }
 }
