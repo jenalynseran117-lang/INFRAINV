@@ -149,7 +149,7 @@ class adminbuttonCRTL extends Controller
         [$itemsReceived, $itemsDistributed, $receivedBreakdown, $distributedBreakdown] =
             $this->computeItemsReceivedAndDistributedDetailed($rangeStart, $rangeEnd);
 
-        return view('admin.report.ReportIndex', compact(
+        return view('admin.Report.reportIndex', compact(
             'itemsReceived',
             'itemsDistributed',
             'totalInventory',

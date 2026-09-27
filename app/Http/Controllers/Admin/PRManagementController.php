@@ -20,7 +20,7 @@ class PRManagementController extends Controller
      */
     public function index()
     {
-        return view('admin.PRManagement.index');
+        return view('admin.PRManagement.Index');
     }
 
     /**
@@ -42,7 +42,7 @@ class PRManagementController extends Controller
      */
     public function WeeklyIndex(Request $request)
     {
-        return view('admin.WeeklyAudit.Weeklyindex', $this->computeWeeklyAudit($request->query('week')));
+        return view('admin.weeklyaudit.weeklyindex', $this->computeWeeklyAudit($request->query('week')));
     }
 
 
