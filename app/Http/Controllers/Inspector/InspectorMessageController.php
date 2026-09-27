@@ -29,7 +29,7 @@ class InspectorMessageController extends Controller
             ['last_read_at' => now()]
         );
 
-        return view('Inspector.Message.WorknoteIndex', compact('notes'));
+        return view('inspector.Message.WorknoteIndex', compact('notes'));
     }
 
     public function store(Request $request)

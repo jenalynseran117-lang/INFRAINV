@@ -29,7 +29,7 @@ class SupplyMessageController extends Controller
             ['last_read_at' => now()]
         );
 
-        return view('Supply.Message.worknotes', compact('notes'));
+        return view('supply.Message.worknotes', compact('notes'));
     }
 
     public function store(Request $request)
