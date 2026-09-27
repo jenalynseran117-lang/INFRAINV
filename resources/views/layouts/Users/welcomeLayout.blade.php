@@ -16,7 +16,7 @@
 
             <!-- LEFT: Logo -->
             <div class="flex items-center gap-3">
-                <img src="{{ asset('PICTURE/logos.png') }}" alt="Logo"
+                <img src="{{ asset('PICTURE/LOGOS.png') }}" alt="Logo"
                     class="w-9 h-9 object-contain">
                 <span class="text-2xl font-black text-[#283E70] tracking-tighter">
                     INFRA-INV<span class="text-blue-600"></span>
