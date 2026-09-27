@@ -66,7 +66,7 @@ class ProfileController extends Controller
             DB::table('password_reset_codes')->where('email', $oldEmail)->delete();
         }
 
-        return redirect()->route('profile.edit')
+        return redirect()->route('Profile.edit')
             ->with('status', $emailChanged ? 'email-changed' : 'profile-updated');
     }
 
