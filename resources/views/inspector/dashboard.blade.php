@@ -197,4 +197,211 @@
     </div>
 
 </div>
+
+
+{{-- ===================================================================
+     Floating Help Bubble (Messenger-style, draggable) — Inspector guide
+     Tap = open/close the guide. Drag = move it anywhere; it snaps to the
+     nearest left/right edge and remembers where you left it.
+     =================================================================== --}}
+@php
+$helpItems = [
+[
+'title' => 'What is on my dashboard?',
+'intro' => 'Your dashboard has two tiles: <strong>For Inspection</strong> shows how many items are waiting for your review, and <strong>Approved</strong> shows how many you have already cleared. Below them are two shortcuts: <strong>Inspection Portal</strong> for pending reviews, and <strong>Stock Activation</strong> for approving or rejecting items.',
+'steps' => [],
+],
+[
+'title' => 'How do I inspect a delivery?',
+'intro' => '',
+'steps' => [
+'Click <strong>Inspection Portal</strong>. You will see three tabs, <strong>All</strong>, <strong>For Inspection</strong>, and <strong>Approved</strong>, each with its own counter, plus PO cards showing the supplier, date, item count, and grand total.',
+'Click <strong>Inspect Details</strong> on the PO you want to check. A window opens with the uploaded delivery document. Click <strong>View / Zoom Document</strong> to look at it closely.',
+'Review each line item: description, quantity pending approval, unit cost, and subtotal. Compare them with the delivery photo that was uploaded.',
+'Click the green <strong>Approve</strong> button next to each item, one by one.',
+'Click <strong>Close</strong> when you are done. The For Inspection count goes down and the Approved count goes up.',
+],
+],
+[
+'title' => 'What happens after I approve an item?',
+'intro' => 'Approved items automatically move to the Warehouse queue for storage. Once every item on a PO is approved, the whole PO’s status changes to “Approved” on its own. Supply Office then places the items into storage.',
+'steps' => [],
+],
+[
+'title' => 'How do I update my profile or log out?',
+'intro' => '',
+'steps' => [
+'Click your name at the top right, then choose <strong>Profile Settings</strong>.',
+'Use <strong>Personal Information</strong> to update your details, or <strong>Password Manager</strong> to change your password.',
+'Choose <strong>Logout</strong> from the same menu, or from the bottom of the sidebar, when you are done.',
+],
+],
+];
+@endphp
+
+<div x-data="{
+        items: @js($helpItems),
+        helpOpen: false,
+        open: 0,
+        side: 'right',
+        x: 0, y: 0, w: 1024, h: 768, size: 56, minX: 8,
+        dragging: false, moved: false,
+        offX: 0, offY: 0, sx: 0, sy: 0,
+
+        init() {
+            this.helpOpen = false;
+            this.$nextTick(() => document.body.appendChild(this.$el));
+            this.w = window.innerWidth;
+            this.h = window.innerHeight;
+            this.refreshBounds();
+            this.side = 'right';
+            this.y = this.clampY(this.h - this.size - 24);
+        },
+        onResize() {
+            this.w = window.innerWidth;
+            this.h = window.innerHeight;
+            this.refreshBounds();
+            this.y = this.clampY(this.y);
+        },
+        refreshBounds() {
+            let right = 0;
+            document.querySelectorAll('aside, nav, [class*=sidebar]').forEach(el => {
+                const r = el.getBoundingClientRect();
+                if (r.width > 0 && r.left < 60 && r.width < 420 && r.height > this.h * 0.5 && r.right > right) right = r.right;
+            });
+            this.minX = Math.min(right > 0 ? right + 12 : 8, Math.max(8, this.w * 0.35));
+        },
+        clampY(v) { return Math.min(Math.max(v, 8), this.h - this.size - 8); },
+        posX() { return (this.dragging && this.moved) ? this.x : (this.side === 'left' ? this.minX : this.w - this.size - 24); },
+
+        startDrag(e) {
+            this.refreshBounds();
+            this.dragging = true;
+            this.moved = false;
+            this.sx = e.clientX;
+            this.sy = e.clientY;
+            this.x = this.posX();
+            this.offX = e.clientX - this.x;
+            this.offY = e.clientY - this.y;
+        },
+        onMove(e) {
+            if (!this.dragging) return;
+            if (!this.moved && Math.abs(e.clientX - this.sx) < 5 && Math.abs(e.clientY - this.sy) < 5) return;
+            this.moved = true;
+            this.x = Math.min(Math.max(e.clientX - this.offX, this.minX), this.w - this.size - 8);
+            this.y = this.clampY(e.clientY - this.offY);
+        },
+        endDrag() {
+            if (!this.dragging) return;
+            const wasMoved = this.moved;
+            this.dragging = false;
+            if (wasMoved) {
+                this.side = (this.x + this.size / 2) < (this.minX + this.w) / 2 ? 'left' : 'right';
+            } else {
+                this.helpOpen = !this.helpOpen;
+            }
+            this.moved = false;
+        },
+        cancelDrag() { this.dragging = false; this.moved = false; },
+
+        btnStyle() {
+            return {
+                left: this.posX() + 'px', top: this.y + 'px', right: 'auto', bottom: 'auto',
+                width: this.size + 'px', height: this.size + 'px', touchAction: 'none',
+                transition: this.dragging ? 'none' : 'left .25s ease, top .25s ease'
+            };
+        },
+        panelStyle() {
+            const pw = Math.min(400, this.w - this.minX - 12);
+            const bx = this.posX();
+            let left = (bx + this.size / 2 < (this.minX + this.w) / 2) ? bx : bx + this.size - pw;
+            left = Math.min(Math.max(left, this.minX), this.w - pw - 12);
+            const above = (this.y + this.size / 2) > this.h / 2;
+            const avail = above ? this.y - 20 : this.h - this.y - this.size - 20;
+            const mh = Math.max(220, Math.min(560, avail));
+            return {
+                left: left + 'px', width: pw + 'px', maxHeight: mh + 'px',
+                top: above ? 'auto' : (this.y + this.size + 10) + 'px',
+                bottom: above ? (this.h - this.y + 10) + 'px' : 'auto'
+            };
+        }
+     }"
+    @resize.window="onResize()"
+    @pageshow.window="if ($event.persisted) helpOpen = false"
+    @transitionend.window="refreshBounds()"
+    @click.window="$nextTick(() => refreshBounds())"
+    @pointermove.window="onMove($event)"
+    @pointerup.window="endDrag()"
+    @pointercancel.window="cancelDrag()"
+    @keydown.escape.window="helpOpen = false"
+    x-cloak>
+
+    {{-- Guide panel --}}
+    <div x-show="helpOpen"
+        x-transition.opacity
+        x-cloak
+        style="display:none"
+        :style="panelStyle()"
+        role="dialog"
+        aria-label="Inspector guide"
+        class="fixed z-50 flex flex-col bg-white rounded-3xl shadow-2xl shadow-purple-900/25 border border-slate-100 overflow-hidden">
+
+        <div class="flex items-start justify-between gap-3 px-5 py-4 bg-gradient-to-br from-orange-500 to-purple-600 text-white">
+            <div>
+                <h2 class="text-base font-extrabold leading-tight">Inspector Guide</h2>
+                <p class="text-xs text-orange-100 mt-0.5">How to use your portal. Drag the bubble to move it.</p>
+            </div>
+            <button @click="helpOpen = false" aria-label="Close guide"
+                class="w-8 h-8 -mr-1 flex items-center justify-center rounded-full text-white/80 hover:text-white hover:bg-white/15 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="overflow-y-auto p-4 space-y-3">
+            <template x-for="(item, i) in items" :key="i">
+                <div class="border border-slate-100 rounded-2xl overflow-hidden">
+                    <button @click="open = open === i ? null : i"
+                        class="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition-colors">
+                        <span class="font-bold text-sm text-[var(--ink)]" x-text="item.title"></span>
+                        <svg class="w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200" :class="{ 'rotate-180': open === i }" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
+                    <div x-show="open === i" x-transition x-cloak class="px-4 pb-4 text-sm text-slate-600 leading-relaxed">
+                        <p x-show="item.intro" x-html="item.intro" class="mb-2"></p>
+                        <ol x-show="item.steps.length" class="list-decimal ml-5 space-y-1.5">
+                            <template x-for="(step, n) in item.steps" :key="n">
+                                <li x-html="step"></li>
+                            </template>
+                        </ol>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <p class="px-5 py-3 border-t border-slate-100 text-xs text-slate-400">
+            Still stuck? Contact your system administrator.
+        </p>
+    </div>
+
+    {{-- Floating bubble --}}
+    <button type="button"
+        @pointerdown.prevent="startDrag($event)"
+        @click="if ($event.detail === 0) helpOpen = !helpOpen"
+        style="right:24px;bottom:24px;width:56px;height:56px"
+        :style="btnStyle()"
+        :aria-expanded="helpOpen.toString()"
+        :aria-label="helpOpen ? 'Close help guide' : 'Open help guide'"
+        class="fixed z-50 rounded-full bg-gradient-to-br from-orange-500 to-purple-600 text-white flex items-center justify-center shadow-xl shadow-orange-500/40 hover:shadow-2xl hover:shadow-orange-500/50 focus-visible:outline focus-visible:outline-4 focus-visible:outline-amber-400 select-none cursor-grab active:cursor-grabbing">
+        <svg x-show="!helpOpen" class="w-7 h-7 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+        </svg>
+        <svg x-show="helpOpen" x-cloak class="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+    </button>
+</div>
+
 @endsection

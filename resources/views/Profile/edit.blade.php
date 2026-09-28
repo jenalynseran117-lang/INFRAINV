@@ -115,8 +115,8 @@
                             {{ strtoupper(substr(auth()->user()->name ?? 'U', 0, 1)) }}
                         </div>
                         <div>
-                            <p class="text-sm font-bold text-slate-800">Profile photo</p>
-                            <p class="text-xs text-slate-400">Photo uploads aren't available yet.</p>
+                            <p class="text-sm font-bold text-slate-800">Profile Details</p>
+                           
                         </div>
                     </div>
 
