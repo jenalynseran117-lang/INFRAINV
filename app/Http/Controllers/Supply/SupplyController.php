@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\InventoryReporting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use App\Models\PurchaseOrder;
 use App\Models\Project;
 use App\Models\Distribution;
@@ -57,6 +58,30 @@ class SupplyController extends Controller
 
         // Pass to the view
         return view('supply.precurement.PreIndex', compact('prs', 'purchaseOrders'));
+    }
+
+    public function previewPrFile($id)
+    {
+        $pr = management::findOrFail($id);
+        $disk = Storage::disk('public');
+
+        abort_unless($disk->exists($pr->file), 404);
+
+        $contentType = match (strtolower(pathinfo($pr->file, PATHINFO_EXTENSION))) {
+            'pdf' => 'application/pdf',
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'xls' => 'application/vnd.ms-excel',
+            'csv' => 'text/csv',
+            default => 'application/octet-stream',
+        };
+
+        return response($disk->get($pr->file), 200, [
+            'Content-Type' => $contentType,
+            'Content-Disposition' => 'inline; filename="' . basename($pr->file) . '"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     // In SupplyController.php

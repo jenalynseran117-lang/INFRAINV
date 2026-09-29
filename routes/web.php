@@ -135,6 +135,7 @@ Route::namespace('App\Http\Controllers\Supply')
         Route::get('/dashboard', 'SupplyController@index')->name('dashboard');
 
         Route::get('/procurement', 'SupplyController@PreIndex')->name('precurement');
+        Route::get('/pr-file/{id}', 'SupplyController@previewPrFile')->name('prFile');
         Route::redirect('/precurement', '/supply/procurement')->name('precurement.legacy');
         Route::post('/procurement', 'SupplyController@PrStore')->name('PrStore');
 

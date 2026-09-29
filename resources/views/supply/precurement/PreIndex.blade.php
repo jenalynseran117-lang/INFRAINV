@@ -19,7 +19,7 @@
             @foreach($prs as $pr)
             @php
             $ext = strtolower(pathinfo($pr->file, PATHINFO_EXTENSION));
-            $fileUrl = Storage::url($pr->file);
+            $fileUrl = route('supply.prFile', $pr->id);
             @endphp
             <div class="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-2xl transition-all group border-b-4 hover:border-b-blue-600">
                 <span class="px-4 py-1.5 bg-blue-50 text-blue-600 text-sm font-black rounded-full uppercase tracking-tighter">PR #{{ $pr->pr_number ?? $pr->id }}</span>
