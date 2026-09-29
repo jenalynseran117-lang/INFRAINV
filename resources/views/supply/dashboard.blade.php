@@ -134,22 +134,7 @@
                     </svg>
                 </div>
                 <h2 class="relative text-6xl font-black text-white tracking-tighter font-display">{{ $newPRCount ?? 0 }}</h2>
-                <p class="relative text-sm font-bold text-red-100 mt-2 uppercase tracking-wide">Pending PR Requests</p>
-            </a>
-
-            {{-- Total Individual Items for Inspection --}}
-            <a href="{{ route('supply.UploadActualItem') }}" class="relative overflow-hidden rounded-3xl p-8 flex flex-col items-center justify-center text-center
-                  bg-gradient-to-br from-rose-500 via-pink-600 to-fuchsia-700
-                  shadow-lg shadow-rose-500/25 hover:shadow-xl hover:shadow-rose-500/40
-                  hover:-translate-y-1 transition-all duration-300 no-underline group">
-                <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all duration-500"></div>
-                <div class="relative mb-3 bg-white/15 backdrop-blur-md text-white p-3 rounded-2xl ring-1 ring-white/25 group-hover:scale-110 transition-transform duration-300">
-                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                    </svg>
-                </div>
-                <h2 class="relative text-6xl font-black text-white tracking-tighter font-display">{{ $totalItemsForInspection ?? 0 }}</h2>
-                <p class="relative text-sm font-bold text-rose-100 mt-2 uppercase tracking-wide">Total Items to Inspect</p>
+                <p class="relative text-sm font-bold text-red-100 mt-2 uppercase tracking-wide">Pending Purchase Request</p>
             </a>
 
             {{-- Pending POs Awaiting Joint Inspection --}}
@@ -166,6 +151,21 @@
                 </div>
                 <h2 class="relative text-6xl font-black text-white tracking-tighter font-display">{{ $pendingPOCount ?? 0 }}</h2>
                 <p class="relative text-sm font-bold text-orange-100 mt-2 uppercase tracking-wide">Pending POs for Inspection</p>
+            </a>
+
+            {{-- Total Individual Items for Inspection --}}
+            <a href="{{ route('supply.UploadActualItem') }}" class="relative overflow-hidden rounded-3xl p-8 flex flex-col items-center justify-center text-center
+                  bg-gradient-to-br from-rose-500 via-pink-600 to-fuchsia-700
+                  shadow-lg shadow-rose-500/25 hover:shadow-xl hover:shadow-rose-500/40
+                  hover:-translate-y-1 transition-all duration-300 no-underline group">
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all duration-500"></div>
+                <div class="relative mb-3 bg-white/15 backdrop-blur-md text-white p-3 rounded-2xl ring-1 ring-white/25 group-hover:scale-110 transition-transform duration-300">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    </svg>
+                </div>
+                <h2 class="relative text-6xl font-black text-white tracking-tighter font-display">{{ $totalItemsForInspection ?? 0 }}</h2>
+                <p class="relative text-sm font-bold text-rose-100 mt-2 uppercase tracking-wide">Total Items to Inspect</p>
             </a>
         </div>
 
@@ -192,26 +192,6 @@
                 @endif
             </a>
 
-            {{-- Warehouse Management --}}
-            <a href="{{ route('supply.Warehouse') }}" class="lg:col-span-1 flex items-center justify-between p-6 bg-white/70 backdrop-blur-xl border border-white/70 rounded-2xl shadow-[0_8px_32px_rgba(31,41,55,0.08)] hover:shadow-xl hover:border-red-200 hover:-translate-y-1 transition-all duration-300 no-underline group">
-                <div class="flex items-center gap-4">
-                    <div class="bg-red-50 p-3 rounded-xl text-red-600 group-hover:bg-gradient-to-br group-hover:from-red-500 group-hover:to-red-700 group-hover:text-white group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                    </div>
-                    <div class="no-underline">
-                        <h3 class="text-xl font-bold text-slate-800">Warehouse</h3>
-                        <p class="text-xs text-slate-500 font-semibold">Storage & Inventory</p>
-                    </div>
-                </div>
-                <div class="text-slate-300 group-hover:text-red-500 group-hover:translate-x-1 transition-all duration-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                </div>
-            </a>
-
             {{-- Joint Inspection --}}
             <a href="{{ route('supply.UploadActualItem') }}" class="lg:col-span-1 flex items-center justify-between p-6 bg-white/70 backdrop-blur-xl border border-white/70 rounded-2xl shadow-[0_8px_32px_rgba(31,41,55,0.08)] hover:shadow-xl hover:border-red-200 hover:-translate-y-1 transition-all duration-300 no-underline group">
                 <div class="flex items-center gap-4">
@@ -231,6 +211,26 @@
                     {{ $pendingPOCount }} Pending
                 </span>
                 @endif
+            </a>
+
+            {{-- Warehouse Management --}}
+            <a href="{{ route('supply.Warehouse') }}" class="lg:col-span-1 flex items-center justify-between p-6 bg-white/70 backdrop-blur-xl border border-white/70 rounded-2xl shadow-[0_8px_32px_rgba(31,41,55,0.08)] hover:shadow-xl hover:border-red-200 hover:-translate-y-1 transition-all duration-300 no-underline group">
+                <div class="flex items-center gap-4">
+                    <div class="bg-red-50 p-3 rounded-xl text-red-600 group-hover:bg-gradient-to-br group-hover:from-red-500 group-hover:to-red-700 group-hover:text-white group-hover:scale-110 group-hover:-rotate-3 transition-all duration-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                    </div>
+                    <div class="no-underline">
+                        <h3 class="text-xl font-bold text-slate-800">Warehouse</h3>
+                        <p class="text-xs text-slate-500 font-semibold">Storage & Inventory</p>
+                    </div>
+                </div>
+                <div class="text-slate-300 group-hover:text-red-500 group-hover:translate-x-1 transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
             </a>
         </div>
 

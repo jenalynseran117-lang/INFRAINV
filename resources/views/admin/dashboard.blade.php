@@ -70,7 +70,7 @@
                 <p class="text-blue-600 font-bold uppercase tracking-widest text-xs">INFRA-INV System</p>
             </div>
             <h1 class="text-4xl md:text-6xl font-black tracking-tight bg-gradient-to-r from-slate-800 via-slate-700 to-blue-800 bg-clip-text text-transparent">
-                Admin Aide
+                Administrative Aide
             </h1>
             <p class="text-slate-600 mt-3 font-medium text-lg">Operations & Logistics Control</p>
         </div>

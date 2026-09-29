@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\Concerns\InventoryReporting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Models\PurchaseOrder;
 use App\Models\Project;
@@ -481,54 +482,82 @@ class SupplyController extends Controller
      */
     public function PrStore(Request $request)
     {
-        // 1. Validate first - added 'amount' array validation
+        // One PR can now have MANY POs. The form sends everything under pos[...]:
+        //   pos[uid][po_number|po_date|supplier|total_cost|signed_po]
+        //   pos[uid][items][k][description|quantity|unit_cost|amount]
         $request->validate([
-            'management_id' => 'required',
-            'po_number'     => 'required|string|unique:purchase_orders,po_number',
-            'po_date'       => 'required|date',
-            'supplier'      => 'required|string|max:255',
-            'description'   => 'required|array',
-            'quantity'      => 'required|array',
-            'unit_cost'     => 'required|array',
-            'amount'        => 'required|array',
-            'total_cost'    => 'required',
-            'signed_po'     => 'nullable|mimes:pdf,jpg,png,jpeg,xlsx,xls,csv|max:5000',
+            'management_id'             => 'required',
+            'pos'                       => 'required|array|min:1',
+            'pos.*.po_number'           => 'required|string|distinct|unique:purchase_orders,po_number',
+            'pos.*.po_date'             => 'required|date',
+            'pos.*.supplier'            => 'required|string|max:255',
+            'pos.*.total_cost'          => 'required',
+            'pos.*.signed_po'           => 'required|mimes:pdf,jpg,png,jpeg,xlsx,xls,csv|max:5000',
+            'pos.*.items'               => 'required|array|min:1',
+            'pos.*.items.*.description' => 'required|string',
+            'pos.*.items.*.quantity'    => 'required|numeric|min:1',
+            'pos.*.items.*.unit_cost'   => 'required|numeric|min:0',
+            'pos.*.items.*.amount'      => 'required',
+        ], [], [
+            'pos.*.po_number'           => 'P.O. number',
+            'pos.*.po_date'             => 'P.O. date',
+            'pos.*.supplier'            => 'supplier',
+            'pos.*.total_cost'          => 'PO total',
+            'pos.*.signed_po'           => 'signed PO file',
+            'pos.*.items'               => 'items',
+            'pos.*.items.*.description' => 'item description',
+            'pos.*.items.*.quantity'    => 'item quantity',
+            'pos.*.items.*.unit_cost'   => 'item unit cost',
+            'pos.*.items.*.amount'      => 'item amount',
         ]);
 
-        // 2. Clean the money values (remove commas)
-        $cleanTotal = str_replace(',', '', $request->total_cost);
+        $created = 0;
 
-        // 3. Prepare the JSON items array safely
-        $itemsArray = collect($request->description)->map(function ($desc, $i) use ($request) {
-            return [
-                'stock_no'    => $i + 1,
-                'description' => $desc,
-                'quantity'    => $request->quantity[$i] ?? 0,
-                'unit_cost'   => str_replace(',', '', $request->unit_cost[$i] ?? 0),
-                'amount'      => str_replace(',', '', $request->amount[$i] ?? 0),
-            ];
-        })->toArray();
+        // All-or-nothing: if any PO fails to save, none of them are kept.
+        DB::transaction(function () use ($request, &$created) {
+            foreach ($request->input('pos') as $key => $po) {
 
-        // 4. Create the record
-        PurchaseOrder::create([
-            'management_id' => $request->management_id,
-            'requested_by'  => auth()->id(),
-            'po_number'     => $request->po_number,
-            'po_date'       => $request->po_date,
-            'supplier'      => $request->supplier,
-            'stock_no'      => $itemsArray[0]['stock_no'] ?? null,
-            'description'   => $itemsArray[0]['description'] ?? null,
-            'quantity'      => $itemsArray[0]['quantity'] ?? 0,
-            'unit_cost'     => $itemsArray[0]['unit_cost'] ?? 0,
-            'total_cost'    => $cleanTotal,
-            'items'         => $itemsArray,
-            'status'        => 'pending_inspection',
-            'po_attachment' => $request->hasFile('signed_po')
-                ? $request->file('signed_po')->store('po_attachments', 'public')
-                : null,
-        ]);
+                // Clean the money values (remove commas)
+                $cleanTotal = str_replace(',', '', $po['total_cost']);
 
-        return redirect()->route('supply.UploadActualItem')->with('success', 'PO Created! Please upload the actual delivery photos.');
+                // Build the JSON items array for THIS PO (stock # restarts at 1 per PO)
+                $itemsArray = collect($po['items'])->values()->map(function ($item, $i) {
+                    return [
+                        'stock_no'    => $i + 1,
+                        'description' => $item['description'],
+                        'quantity'    => $item['quantity'] ?? 0,
+                        'unit_cost'   => str_replace(',', '', $item['unit_cost'] ?? 0),
+                        'amount'      => str_replace(',', '', $item['amount'] ?? 0),
+                    ];
+                })->toArray();
+
+                $file = $request->file("pos.$key.signed_po");
+
+                PurchaseOrder::create([
+                    'management_id' => $request->management_id,
+                    'requested_by'  => auth()->id(),
+                    'po_number'     => $po['po_number'],
+                    'po_date'       => $po['po_date'],
+                    'supplier'      => $po['supplier'],
+                    'stock_no'      => $itemsArray[0]['stock_no'] ?? null,
+                    'description'   => $itemsArray[0]['description'] ?? null,
+                    'quantity'      => $itemsArray[0]['quantity'] ?? 0,
+                    'unit_cost'     => $itemsArray[0]['unit_cost'] ?? 0,
+                    'total_cost'    => $cleanTotal,
+                    'items'         => $itemsArray,
+                    'status'        => 'pending_inspection',
+                    'po_attachment' => $file ? $file->store('po_attachments', 'public') : null,
+                ]);
+
+                $created++;
+            }
+        });
+
+        $message = $created === 1
+            ? 'PO Created! Please upload the actual delivery photos.'
+            : "{$created} POs Created! Please upload the actual delivery photos.";
+
+        return redirect()->route('supply.UploadActualItem')->with('success', $message);
     }
 
     /**

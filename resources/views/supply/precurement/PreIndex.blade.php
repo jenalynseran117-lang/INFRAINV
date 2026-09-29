@@ -1,7 +1,7 @@
 @extends('layouts.Supply.app')
 
 @section('content')
-<div class="w-full max-w-[1920px] mx-auto p-2 md:p-6 antialiased">
+<div id="procurement-root" class="w-full max-w-[1920px] mx-auto p-2 md:p-6 antialiased">
 
     {{-- 1. LIST VIEW --}}
     <div id="list-view" class="animate-in fade-in duration-500">
@@ -44,11 +44,10 @@
     </div>
 
     {{-- 2. FOCUS MODE --}}
-    <div id="processing-view" class="hidden animate-in slide-in-from-bottom-10 duration-700">
-        <form action="{{ route('supply.PrStore') }}" method="POST" enctype="multipart/form-data">
+    <div id="processing-view" class="hidden animate-in slide-in-from-bottom-10 duration-700" style="overflow-x:clip">
+        <form id="po-form" action="{{ route('supply.PrStore') }}" method="POST" enctype="multipart/form-data" novalidate onsubmit="return validateBeforeSubmit(event)">
             @csrf
             <input type="hidden" name="management_id" id="selected-pr-id">
-            <input type="file" name="signed_po" id="signed_po" class="hidden" accept=".pdf,image/*,.xlsx,.xls,.csv" onchange="handlePOUpload(this)">
 
             {{-- Header Controls --}}
             <div class="flex items-center justify-between mb-2 bg-white px-4 py-2 rounded-2xl shadow-md border border-slate-50">
@@ -60,13 +59,13 @@
                     </button>
                     <div class="flex items-center gap-2 border-l-2 pl-3">
                         <h2 id="focus-pr-title" class="text-sm font-black text-slate-900 tracking-tighter uppercase">PR #0000</h2>
-                        <button type="button" id="btn-view-pr" class="hidden px-3 py-1.5 bg-slate-800 text-white text-[11px] font-black rounded-lg uppercase tracking-widest hover:bg-blue-600 transition shadow-md">View PR</button>
+                        <button type="button" id="btn-view-pr" class="px-3 py-1.5 bg-slate-800 text-white text-[11px] font-black rounded-lg uppercase tracking-widest hover:bg-blue-600 transition shadow-md">View PR</button>
                         <div id="po-action-container" class="flex gap-2">
-                            <button type="button" id="btn-upload-trigger" onclick="document.getElementById('signed_po').click()" class="px-3 py-1.5 bg-blue-600 text-white text-[11px] font-black rounded-lg uppercase tracking-widest hover:bg-blue-700 transition shadow-md flex items-center gap-1.5">
+                            <button type="button" id="btn-upload-trigger" onclick="triggerPoUpload()" class="px-3 py-1.5 bg-blue-600 text-white text-[11px] font-black rounded-lg uppercase tracking-widest hover:bg-blue-700 transition shadow-md flex items-center gap-1.5">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                 </svg>
-                                Upload PO
+                                <span id="upload-btn-label">Upload PO</span>
                             </button>
                             <button type="button" id="btn-view-po" class="hidden px-3 py-1.5 bg-emerald-600 text-white text-[11px] font-black rounded-lg uppercase tracking-widest hover:bg-emerald-700 transition">View PO</button>
                         </div>
@@ -96,9 +95,7 @@
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
                 {{-- DOCUMENT VIEWER WITH INTEGRATED ZOOM --}}
-                <div class="lg:col-span-7 bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl h-[calc(100vh-100px)] sticky top-2 border-[8px] border-slate-800 group relative">
-
-                    {{-- FLOATING ZOOM CONTROLS --}}
+                <div class="lg:col-span-6 min-w-0 bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl h-[calc(100vh-100px)] sticky top-2 border-[8px] border-slate-800 group relative">
                     <div class="absolute right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-2 p-2 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 shadow-2xl opacity-40 group-hover:opacity-100 transition-opacity">
                         <button type="button" onclick="adjustZoom(0.2)" class="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-lg hover:bg-blue-600 hover:text-white transition-all text-slate-800 font-bold text-xl">+</button>
                         <div id="zoom-level" class="text-sm font-black text-white text-center py-1">100%</div>
@@ -110,7 +107,6 @@
                         </button>
                     </div>
 
-                    {{-- VIEWER CONTAINER --}}
                     <div id="viewer-container" class="h-full w-full overflow-auto custom-scrollbar bg-slate-950 flex justify-center items-center relative cursor-grab active:cursor-grabbing p-4">
                         <div id="document-content" class="origin-center transition-transform duration-200 flex justify-center items-center w-full h-full min-h-[400px]">
                             <div class="text-center">
@@ -119,7 +115,6 @@
                         </div>
                     </div>
 
-                    {{-- OCR loading overlay --}}
                     <div id="ocr-loading-overlay" class="hidden absolute inset-0 bg-slate-950/80 z-40 flex-col items-center justify-center gap-3">
                         <div class="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
                         <p id="ocr-loading-text" class="text-white text-sm font-black uppercase tracking-widest">Reading document...</p>
@@ -127,10 +122,13 @@
                 </div>
 
                 {{-- RIGHT FORM PANEL --}}
-                <div class="lg:col-span-5 bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-8 overflow-y-auto h-[calc(100vh-100px)] custom-scrollbar">
-                    <div class="space-y-8">
+                <div class="lg:col-span-6 min-w-0 bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-5 overflow-y-auto h-[calc(100vh-100px)] custom-scrollbar">
+                    <div class="flex flex-col gap-4 min-h-full">
 
-                        <div id="ocr-panel" class="hidden space-y-2 sticky top-0 z-20 -mx-8 px-8 pt-2 pb-4 bg-white/95 backdrop-blur-sm border-b border-amber-100 shadow-md">
+                        {{-- PO TABS (one tab per PO under this PR) --}}
+                        <div id="po-tabs" class="sticky -top-5 z-30 -mx-5 -mt-5 px-5 pt-5 pb-3 bg-white/95 backdrop-blur-sm border-b border-slate-100 flex flex-nowrap items-center gap-2 overflow-x-auto custom-scrollbar"></div>
+
+                        <div id="ocr-panel" class="hidden space-y-2 sticky top-[58px] z-20 -mx-5 px-5 pt-2 pb-4 bg-white/95 backdrop-blur-sm border-b border-amber-100 shadow-md">
                             <div class="flex justify-between items-center px-2">
                                 <label class="text-sm font-black text-amber-600 uppercase tracking-widest">Item Descriptions Found on PO</label>
                                 <button type="button" onclick="document.getElementById('ocr-panel').classList.add('hidden')"
@@ -142,110 +140,17 @@
                             <p class="text-sm font-bold text-slate-600 px-2">Copy the descriptions you need into the item rows below manually. Accuracy depends on photo quality — double check before entering.</p>
                         </div>
 
-                        <div id="upload-po-gate-notice" class="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                            </svg>
-                            <p class="text-[13px] font-black text-amber-700 uppercase tracking-wide">Upload the PO first to fill in these fields.</p>
+                        {{-- PO PANELS are injected here by JS --}}
+                        <div id="po-panels"></div>
+
+                        {{-- Sticky footer: overall total + submit --}}
+                        <div class="mt-auto sticky -bottom-5 z-30 -mx-5 -mb-5 px-5 pt-4 pb-5 bg-white/95 backdrop-blur-sm border-t border-slate-100 flex items-center gap-4">
+                            <div class="shrink-0">
+                                <span id="overall-po-count" class="block text-[11px] font-black text-slate-400 uppercase tracking-widest">1 PO</span>
+                                <span class="text-xs font-black text-slate-500 uppercase">All POs ₱ <span id="overall-total" class="text-xl text-slate-900 font-black">0.00</span></span>
+                            </div>
+                            <button type="submit" id="submit-btn" disabled class="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-[0.3em] shadow-xl hover:bg-emerald-600 transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-900">Complete Transaction</button>
                         </div>
-
-                        <div class="grid grid-cols-2 gap-4">
-                            <div class="col-span-1">
-                                <div class="flex items-center justify-between ml-3 mb-1">
-                                    <label class="text-sm font-black text-slate-600 uppercase tracking-widest">P.O. Number</label>
-                                    <div class="flex items-center gap-2">
-                                        <span id="pr-format-icon"></span>
-                                        <span id="po-match-icon"></span>
-                                    </div>
-                                </div>
-                                <input type="text"
-                                    name="po_number"
-                                    id="pr_number"
-                                    required
-                                    disabled
-                                    autocomplete="off"
-                                    inputmode="numeric"
-                                    class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none border-gray-300 text-lg font-mono text-inv-navy disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                                    value="SO_A_"
-                                    maxlength="17"
-                                    pattern="SO_A_\d{4}_\d{2}_\d{3}"
-                                    title="Format must be SO_A_YYYY_MM_XXX (e.g., SO_A_2026_07_000)"
-                                    oninput="formatPoNumberInput(event)"
-                                    onfocus="if(!this.value) this.value='SO_A_';"
-                                    onblur="validatePoNumberFormat(this)">
-                                <p id="po-match-status" class="text-[13px] font-bold text-slate-600 mt-1 ml-3">Upload a signed PO to verify this number.</p>
-                                <p id="po-duplicate-status" class="hidden text-[13px] font-bold text-red-500 mt-1 ml-3">This P.O. Number is already in use — please enter a different one.</p>
-                            </div>
-                            <div class="col-span-1">
-                                <label class="text-sm font-black text-slate-600 uppercase tracking-widest ml-3 mb-1 block">Date</label>
-                                <input type="date" name="po_date" id="po_date" required disabled
-                                    class="w-full p-3 rounded-xl bg-slate-50 border-none font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 shadow-inner disabled:text-slate-400 disabled:cursor-not-allowed"
-                                    oninput="validatePoDate(this)">
-                                <p class="text-[13px] font-bold text-slate-600 mt-1 ml-3">No future dates — up to 1 month in the past is allowed.</p>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="text-sm font-black text-slate-600 uppercase tracking-widest ml-3 mb-1 block">Supplier</label>
-                            <input type="text"
-                                name="supplier"
-                                id="supplier"
-                                required
-                                disabled
-                                autocomplete="off"
-                                class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none border-gray-300 text-lg font-bold text-inv-navy disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed">
-                        </div>
-
-                        {{-- Item Management --}}
-                        <div class="space-y-4">
-                            <div class="flex justify-between items-center px-2">
-                                <h4 class="text-sm font-black text-slate-900 uppercase tracking-widest">Procurement Items</h4>
-                            </div>
-                            <p class="text-[13px] font-bold text-slate-600 px-2 -mt-2">Tip: Click "Upload PO" and choose an Excel/CSV file to preview it in the document reader. Item rows are entered manually — use "+ Add Row" and fill in each description, qty, and cost.</p>
-
-                            <div id="item-cards-container" class="space-y-3">
-                                <div class="item-card bg-slate-50 rounded-2xl p-6 border border-slate-100 relative group transition-all hover:border-blue-200 shadow-sm space-y-4">
-                                    <div class="grid grid-cols-12 gap-4">
-                                        <div class="col-span-2">
-                                            <label class="text-[13px] font-black text-slate-600 mb-1.5 block uppercase">Stock #</label>
-                                            <input type="text" name="stock_no[]" readonly class="stock-counter w-full p-3.5 rounded-xl border-none text-base font-black bg-blue-50 text-blue-600 shadow-sm text-center" value="1">
-                                        </div>
-                                        <div class="col-span-10">
-                                            <label class="text-[13px] font-black text-slate-600 mb-1.5 block uppercase">Description</label>
-                                            <input type="text" name="description[]" disabled class="w-full p-3.5 rounded-xl border-none text-base font-bold shadow-sm focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed">
-                                        </div>
-                                    </div>
-                                    <div class="grid grid-cols-3 gap-4">
-                                        <div>
-                                            <label class="text-[13px] font-black text-slate-600 mb-1.5 block uppercase">Qty</label>
-                                            <input type="number" name="quantity[]" oninput="calculateCard(this)" disabled class="qty w-full p-3.5 rounded-xl border-none text-base font-black text-blue-600 text-center shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed">
-                                        </div>
-                                        <div>
-                                            <label class="text-[13px] font-black text-slate-600 mb-1.5 block uppercase">Unit Cost</label>
-                                            <input type="number" step="0.01" name="unit_cost[]" oninput="calculateCard(this)" disabled class="cost w-full p-3.5 rounded-xl border-none text-base font-bold text-right shadow-sm disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed">
-                                        </div>
-                                        <div>
-                                            <label class="text-[13px] font-black text-blue-500 mb-1.5 block uppercase">Sub-Total (₱)</label>
-                                            <input type="text" name="amount[]" readonly class="amount w-full p-3.5 rounded-xl border-none bg-blue-100/50 font-black text-blue-700 text-base text-right" value="0.00">
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="flex justify-end px-2">
-                                <button type="button" id="btn-add-row" onclick="addItemCard()" disabled class="px-5 py-2.5 bg-slate-900 text-white text-[13px] font-black rounded-xl uppercase tracking-widest hover:bg-blue-600 transition shadow-xl disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-900">+ Add Row</button>
-                            </div>
-
-                            <div class="bg-blue-600 p-8 rounded-[2rem] flex justify-between items-center shadow-2xl border-b-8 border-blue-800">
-                                <span class="text-white font-black uppercase text-sm tracking-[0.2em]">Grand Total</span>
-                                <div class="flex items-baseline gap-2 text-white">
-                                    <span class="text-sm font-bold opacity-70">₱</span>
-                                    <input type="text" id="total-cost" name="total_cost" readonly class="bg-transparent border-none text-4xl font-black focus:ring-0 text-right w-56" value="0.00">
-                                </div>
-                            </div>
-                        </div>
-
-                        <button type="submit" id="submit-btn" disabled class="w-full bg-slate-900 text-white py-6 rounded-[2rem] font-black text-sm uppercase tracking-[0.5em] shadow-2xl hover:bg-emerald-600 transition-all transform active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-slate-900">Complete Transaction</button>
                     </div>
                 </div>
 
@@ -260,17 +165,19 @@
 <script>
     let currentPRFile = "";
     let currentPRExt = "";
-    let currentPOFile = null;
-    let currentPOPreview = null;
     let zoomLevel = 1;
-    let extractedPoNumberFromFile = null;
-    let poUploaded = false;
+
+    // ---- Multi-PO state: one entry per PO tab under this PR ----
+    let poSeq = 0;
+    let activeUid = null;
+    const poStates = {}; // uid -> { file, preview, extractedNumber, uploaded, itemSeq }
 
     const existingPoNumbers = @json($purchaseOrders->pluck('po_number')->filter()->values());
     const normalizedExistingPoNumbers = existingPoNumbers.map((n) => normalizePoNumber(n));
 
     const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
     const SPREADSHEET_EXTS = ['xlsx', 'xls', 'csv'];
+    const PR_PREFIX = 'SO_A_';
 
     function startProcessing(id, prNumber, ext, fileUrl) {
         currentPRFile = fileUrl;
@@ -355,16 +262,6 @@
         iframe.className = "shadow-2xl border-4 border-slate-700 bg-white w-full h-[75vh] rounded-lg border-none";
         content.appendChild(iframe);
         iframe.srcdoc = styledHtml;
-    }
-
-    function showPOPreview() {
-        if (!currentPOPreview) return;
-
-        if (currentPOPreview.type === 'spreadsheet') {
-            displaySpreadsheetPreview(currentPOPreview.content, currentPOPreview.fileName);
-        } else {
-            displayInViewer(currentPOPreview.content, currentPOPreview.type, "Signed PO");
-        }
     }
 
     function showToast(message, type = 'info', anchorEl = null) {
@@ -454,62 +351,262 @@
         return true;
     }
 
-    async function extractPOItemDescriptions() {
-        const extractBtn = document.getElementById('btn-extract-text');
+    // =====================================================================
+    //  MULTI-PO LOGIC
+    // =====================================================================
+    const CHECK_SVG = '<svg class="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>';
+    const CROSS_SVG = '<svg class="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" /></svg>';
+    const STATUS_BASE = 'text-xs font-bold mt-1 leading-snug ';
+    const ITEM_COLS = '2.25rem minmax(0,1fr) 4.5rem 6.5rem 7rem 1.75rem';
 
-        if (currentPOPreview && currentPOPreview.type === 'spreadsheet') {
-            showToast("This is a spreadsheet preview, not a scannable image — enter item descriptions manually or copy from the spreadsheet.", 'info', extractBtn);
-            return;
+    const panelEl = (uid) => document.getElementById('po-panel-' + uid);
+    const q = (uid, sel) => panelEl(uid).querySelector(sel);
+    const uidList = () => Object.keys(poStates).map(Number);
+
+    function poPanelHtml(uid) {
+        return `
+        <div id="po-panel-${uid}" class="po-panel hidden space-y-5" data-uid="${uid}">
+            <input type="file" name="pos[${uid}][signed_po]" class="po-file-input hidden"
+                accept=".pdf,image/*,.xlsx,.xls,.csv" onchange="handlePOUpload(this, ${uid})">
+
+            {{-- Empty state: shown until this PO's file is uploaded --}}
+            <div class="po-gate-notice flex flex-col items-center text-center gap-3 py-14 px-6 border-2 border-dashed border-amber-300 bg-amber-50/60 rounded-3xl">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                <p class="text-sm font-black text-amber-700 uppercase tracking-wide">Upload this PO to start</p>
+                <p class="text-xs font-bold text-slate-500 max-w-xs">The details and items for this PO unlock after its file is uploaded.</p>
+                <button type="button" onclick="triggerPoUpload()" class="px-5 py-2.5 bg-blue-600 text-white text-xs font-black rounded-xl uppercase tracking-widest hover:bg-blue-700 transition shadow-md">Upload PO File</button>
+            </div>
+
+            <div class="po-body hidden space-y-5">
+                <div class="min-w-0 px-1">
+                    <p class="po-title text-[11px] font-black text-blue-600 uppercase tracking-widest">PO</p>
+                    <p class="po-filename text-sm font-extrabold text-slate-700 truncate"></p>
+                </div>
+
+                {{-- PO DETAILS --}}
+                <section class="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-3">
+                    <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest">PO Details</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest">P.O. Number</label>
+                                <div class="flex items-center gap-1"><span class="pr-format-icon"></span><span class="po-match-icon"></span></div>
+                            </div>
+                            <input type="text" name="pos[${uid}][po_number]" disabled autocomplete="off" inputmode="numeric"
+                                class="po-number w-full px-3 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none border-gray-300 text-base font-mono text-inv-navy bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                                value="SO_A_" maxlength="17"
+                                title="Format must be SO_A_YYYY_MM_XXX (e.g., SO_A_2026_07_000)"
+                                oninput="formatPoNumberInput(event, ${uid})"
+                                onfocus="if(!this.value) this.value='SO_A_';"
+                                onblur="validatePoNumberFormat(this, ${uid})">
+                            <p class="po-match-status ${STATUS_BASE} text-slate-500">Upload a signed PO to verify this number.</p>
+                            <p class="po-duplicate-status hidden text-xs font-bold text-red-500 mt-1">This P.O. Number is already in use.</p>
+                        </div>
+                        <div>
+                            <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1 block">Date</label>
+                            <input type="date" name="pos[${uid}][po_date]" disabled
+                                class="po-date w-full px-3 py-2.5 rounded-xl bg-white border border-gray-300 font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                                oninput="validatePoDate(this)">
+                            <p class="text-xs font-bold text-slate-500 mt-1">No future dates; up to 1 month back.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-1 block">Supplier</label>
+                        <input type="text" name="pos[${uid}][supplier]" disabled autocomplete="off"
+                            class="po-supplier w-full px-3 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none border-gray-300 bg-white text-base font-bold text-inv-navy disabled:bg-slate-100 disabled:text-slate-400">
+                    </div>
+                </section>
+
+                {{-- PROCUREMENT ITEMS (separate for every PO) --}}
+                <section class="space-y-2">
+                    <div class="flex items-center justify-between px-1">
+                        <h4 class="text-xs font-black text-slate-500 uppercase tracking-widest">Procurement Items</h4>
+                        <span class="po-item-count text-[11px] font-black text-slate-400 uppercase tracking-widest">1 item</span>
+                    </div>
+                    <div class="grid gap-2 px-2 text-[10px] font-black text-slate-400 uppercase tracking-wider" style="grid-template-columns:${ITEM_COLS}">
+                        <span class="text-center">#</span><span>Description</span><span class="text-center">Qty</span><span class="text-right">Unit Cost</span><span class="text-right">Subtotal</span><span></span>
+                    </div>
+                    <div class="item-cards-container space-y-2"></div>
+                    <button type="button" disabled onclick="addItemCard(${uid})"
+                        class="btn-add-row w-full py-3 rounded-xl border-2 border-dashed border-slate-300 text-slate-600 text-xs font-black uppercase tracking-widest hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition disabled:opacity-40 disabled:cursor-not-allowed">+ Add Item</button>
+
+                    <div class="flex items-center justify-between bg-blue-600 rounded-2xl px-5 py-4 text-white shadow-lg">
+                        <span class="font-black uppercase text-xs tracking-[0.2em]">PO Total</span>
+                        <div class="flex items-baseline gap-1">
+                            <span class="text-sm font-bold opacity-70">₱</span>
+                            <input type="text" name="pos[${uid}][total_cost]" readonly value="0.00"
+                                class="po-total bg-transparent border-none text-2xl font-black focus:ring-0 text-right w-44 p-0">
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>`;
+    }
+
+    function itemCardHtml(uid, k, n, disabled) {
+        const dis = disabled ? 'disabled' : '';
+        const dCls = 'disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed';
+        const inp = 'w-full px-2.5 py-2.5 rounded-lg border border-slate-200 bg-white text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none';
+        const rm = n > 1 ?
+            `<button type="button" onclick="removeCard(this, ${uid})" title="Remove item" class="w-7 h-7 rounded-full bg-white border border-slate-200 text-slate-400 hover:bg-red-500 hover:border-red-500 hover:text-white text-sm font-bold transition">×</button>` :
+            '<span></span>';
+        return `
+        <div class="item-card grid gap-2 items-center bg-slate-50 rounded-xl px-2 py-2 border border-slate-100 hover:border-blue-200 transition" style="grid-template-columns:${ITEM_COLS}">
+            <input type="text" name="pos[${uid}][items][${k}][stock_no]" readonly value="${n}" class="stock-counter w-full py-2.5 rounded-lg bg-blue-50 text-blue-600 text-sm font-black text-center border-none">
+            <input type="text" name="pos[${uid}][items][${k}][description]" ${dis} placeholder="Item description" class="item-desc ${inp} font-bold ${dCls}">
+            <input type="number" min="0" name="pos[${uid}][items][${k}][quantity]" ${dis} placeholder="0" oninput="calculateCard(this, ${uid})" class="qty ${inp} text-center font-black text-blue-600 ${dCls}">
+            <input type="number" min="0" step="0.01" name="pos[${uid}][items][${k}][unit_cost]" ${dis} placeholder="0.00" oninput="calculateCard(this, ${uid})" class="cost ${inp} text-right font-bold ${dCls}">
+            <input type="text" name="pos[${uid}][items][${k}][amount]" readonly value="0.00" class="amount w-full py-2.5 px-2 rounded-lg bg-blue-100/50 text-blue-700 text-sm font-black text-right border-none">
+            ${rm}
+        </div>`;
+    }
+
+    function updateItemCount(uid) {
+        const n = q(uid, '.item-cards-container').getElementsByClassName('item-card').length;
+        q(uid, '.po-item-count').innerText = n + (n === 1 ? ' item' : ' items');
+    }
+
+    // ---------- PO tabs ----------
+    function addPo(openPicker = true) {
+        const uid = ++poSeq;
+        poStates[uid] = { file: null, preview: null, extractedNumber: null, uploaded: false, itemSeq: 0 };
+
+        document.getElementById('po-panels').insertAdjacentHTML('beforeend', poPanelHtml(uid));
+        const dateInput = q(uid, '.po-date');
+        dateInput.min = getMinPoDateString();
+        dateInput.max = getMaxPoDateString();
+
+        addItemCard(uid, true);
+        setPoFieldsEnabled(uid, false);
+        setActivePo(uid);
+        updateOverallSummary();
+
+        if (openPicker && uidList().length > 1) triggerPoUpload();
+    }
+
+    function removePo(uid) {
+        if (uidList().length <= 1) return;
+        if (!confirm('Remove this PO and everything entered for it?')) return;
+
+        panelEl(uid).remove();
+        delete poStates[uid];
+        if (activeUid === uid) {
+            setActivePo(uidList()[0]);
+        } else {
+            renderTabs();
         }
+        refreshAllDuplicateUI();
+        updateOverallSummary();
+    }
 
-        if (!currentPOFile) {
-            showToast("Please upload a signed PO image first.", 'warning', extractBtn);
-            return;
-        }
+    function renderTabs() {
+        const uids = uidList();
+        const bar = document.getElementById('po-tabs');
+        bar.innerHTML = uids.map((uid, i) => {
+            const st = poStates[uid];
+            const active = uid === activeUid;
+            const num = q(uid, '.po-number').value;
+            const complete = num.length === PR_PREFIX.length + 11;
+            const sub = complete ? num : (st.uploaded ? 'Fill in details' : 'Awaiting upload');
+            const dot = st.uploaded ? 'bg-emerald-400' : 'bg-amber-400';
+            const tabCls = active ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400';
+            const subCls = active ? 'text-slate-300' : 'text-slate-400';
+            const rm = uids.length > 1 ?
+                `<button type="button" onclick="removePo(${uid})" title="Remove this PO" class="ml-1 w-6 h-6 shrink-0 rounded-full text-slate-400 hover:bg-red-500 hover:text-white text-sm font-bold transition">×</button>` : '';
+            panelEl(uid).querySelector('.po-title').innerText = 'PO ' + (i + 1) + ' of ' + uids.length;
+            return `<div class="flex items-center shrink-0">
+                <button type="button" onclick="setActivePo(${uid})" class="px-3 py-1.5 rounded-xl border text-left flex items-center gap-2 transition ${tabCls}">
+                    <span class="w-2 h-2 rounded-full shrink-0 ${dot}"></span>
+                    <span class="leading-tight">
+                        <span class="block text-[12px] font-black uppercase tracking-widest">PO ${i + 1}</span>
+                        <span class="block text-[10px] font-bold font-mono ${subCls}">${sub}</span>
+                    </span>
+                </button>${rm}
+            </div>`;
+        }).join('') + `<button type="button" onclick="addPo()" class="shrink-0 px-4 py-3 rounded-xl text-[12px] font-black uppercase tracking-widest border-2 border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 transition">+ Add PO</button>`;
+    }
 
-        const ext = currentPOFile.name.split('.').pop().toLowerCase();
-        if (!IMAGE_EXTS.includes(ext)) {
-            showToast("Item description extraction only works on image uploads (JPG/PNG) — this file is a " + ext.toUpperCase() + ".", 'warning', extractBtn);
-            return;
-        }
+    function setActivePo(uid) {
+        activeUid = uid;
+        document.querySelectorAll('.po-panel').forEach((p) => p.classList.toggle('hidden', Number(p.dataset.uid) !== uid));
+        document.getElementById('ocr-panel').classList.add('hidden');
+        renderTabs();
+        updateHeaderButtons();
 
-        const overlay = document.getElementById('ocr-loading-overlay');
-        const loadingText = document.getElementById('ocr-loading-text');
-        const panel = document.getElementById('ocr-panel');
-        const output = document.getElementById('ocr-output');
-
-        overlay.classList.remove('hidden');
-        overlay.classList.add('flex');
-        panel.classList.remove('hidden');
-        output.value = "";
-
-        try {
-            const poUrl = URL.createObjectURL(currentPOFile);
-            const text = await runOCR(poUrl, (m) => {
-                loadingText.innerText = m.status === 'recognizing text' ?
-                    'Reading PO... ' + Math.round(m.progress * 100) + '%' :
-                    m.status;
-            });
-
-            const lines = text.split('\n').map((l) => l.trim()).filter(looksLikeDescriptionLine);
-
-            if (lines.length === 0) {
-                output.value = "(No item descriptions detected on the uploaded PO — try a clearer photo, or enter them manually.)";
-                return;
-            }
-
-            output.value = lines.join('\n');
-        } catch (err) {
-            output.value = "Could not read text from the uploaded PO: " + err.message;
-        } finally {
-            overlay.classList.add('hidden');
-            overlay.classList.remove('flex');
+        const st = poStates[uid];
+        if (st.preview) {
+            showPOPreview();
+        } else if (currentPRFile) {
+            displayInViewer(currentPRFile, currentPRExt, "Purchase Request");
         }
     }
 
-    const PR_PREFIX = 'SO_A_';
+    function updateHeaderButtons() {
+        const st = poStates[activeUid];
+        document.getElementById('upload-btn-label').innerText = st && st.uploaded ? 'Replace PO' : 'Upload PO';
+        document.getElementById('btn-view-po').classList.toggle('hidden', !(st && st.uploaded));
+    }
 
-    function formatPoNumberInput(e) {
+    function triggerPoUpload() {
+        if (activeUid === null) return;
+        q(activeUid, '.po-file-input').click();
+    }
+
+    function showPOPreview() {
+        const st = poStates[activeUid];
+        if (!st || !st.preview) return;
+        const p = st.preview;
+        if (p.type === 'spreadsheet') {
+            displaySpreadsheetPreview(p.content, p.fileName);
+        } else {
+            displayInViewer(p.content, p.type, "Signed PO " + (uidList().indexOf(activeUid) + 1));
+        }
+    }
+
+    // ---------- field enabling / date rules ----------
+    function setPoFieldsEnabled(uid, enabled) {
+        const p = panelEl(uid);
+        poStates[uid].uploaded = enabled;
+        p.querySelector('.po-number').disabled = !enabled;
+        p.querySelector('.po-date').disabled = !enabled;
+        p.querySelector('.po-supplier').disabled = !enabled;
+        p.querySelector('.btn-add-row').disabled = !enabled;
+        p.querySelectorAll('.item-cards-container input:not(.stock-counter):not(.amount)').forEach((el) => {
+            el.disabled = !enabled;
+        });
+        p.querySelector('.po-gate-notice').classList.toggle('hidden', enabled);
+        p.querySelector('.po-body').classList.toggle('hidden', !enabled);
+        renderTabs();
+        updateHeaderButtons();
+        updateSubmitAvailability();
+    }
+
+    function getMinPoDateString() {
+        const d = new Date();
+        d.setMonth(d.getMonth() - 1);
+        return d.toISOString().split('T')[0];
+    }
+
+    function getMaxPoDateString() {
+        return new Date().toISOString().split('T')[0];
+    }
+
+    function validatePoDate(input) {
+        if (input.value && input.max && input.value > input.max) {
+            showToast('P.O. Date cannot be in the future.', 'error', input);
+            input.value = '';
+            return;
+        }
+        if (input.value && input.min && input.value < input.min) {
+            showToast('P.O. Date cannot be more than 1 month in the past.', 'error', input);
+            input.value = '';
+        }
+    }
+
+    // ---------- P.O. number handling (per PO) ----------
+    function formatPoNumberInput(e, uid) {
         const input = e.target;
         let digits = input.value.slice(PR_PREFIX.length).replace(/\D/g, '').slice(0, 9);
 
@@ -519,32 +616,25 @@
         if (digits.length > 6) formatted += '_' + digits.slice(6, 9);
 
         input.value = formatted;
-        updatePrFormatIcon(input);
-        checkPoMatch();
-        updatePoDuplicateUI(input);
+        updatePrFormatIcon(input, uid);
+        checkPoMatch(uid);
+        refreshAllDuplicateUI();
+        renderTabs();
     }
 
-    function updatePrFormatIcon(input) {
-        const icon = document.getElementById('pr-format-icon');
+    function updatePrFormatIcon(input, uid) {
+        const icon = q(uid, '.pr-format-icon');
         const fullPattern = new RegExp('^' + PR_PREFIX + '\\d{4}_\\d{2}_\\d{3}$');
         const isComplete = input.value.length === PR_PREFIX.length + 11;
-
-        if (!isComplete) {
-            icon.innerHTML = '';
-            return;
-        }
-
-        icon.innerHTML = fullPattern.test(input.value) ?
-            '<svg class="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>' :
-            '<svg class="h-4 w-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" /></svg>';
+        icon.innerHTML = !isComplete ? '' : (fullPattern.test(input.value) ? CHECK_SVG : CROSS_SVG);
     }
 
-    function validatePoNumberFormat(input) {
+    function validatePoNumberFormat(input, uid) {
         if (!input.value.startsWith(PR_PREFIX)) {
             input.value = PR_PREFIX;
-            updatePrFormatIcon(input);
+            updatePrFormatIcon(input, uid);
         }
-        updatePoDuplicateUI(input);
+        refreshAllDuplicateUI();
     }
 
     function normalizePoNumber(str) {
@@ -562,276 +652,310 @@
         return null;
     }
 
-    function checkPoMatch() {
-        const icon = document.getElementById('po-match-icon');
-        const status = document.getElementById('po-match-status');
-        const typedValue = document.getElementById('pr_number').value;
+    function setMatchStatus(uid, text, colorCls) {
+        const s = q(uid, '.po-match-status');
+        s.innerText = text;
+        s.className = 'po-match-status ' + STATUS_BASE + colorCls;
+    }
 
-        if (!extractedPoNumberFromFile) {
+    function checkPoMatch(uid) {
+        const icon = q(uid, '.po-match-icon');
+        const typed = q(uid, '.po-number').value;
+        const extracted = poStates[uid].extractedNumber;
+
+        if (!extracted) {
             icon.innerHTML = '';
-            status.innerText = 'Upload a signed PO to verify this number.';
-            status.className = 'text-[13px] font-bold text-slate-600 mt-1 ml-3';
+            setMatchStatus(uid, 'Upload a signed PO to verify this number.', 'text-slate-600');
             return;
         }
-
-        if (!typedValue) {
+        if (!typed) {
             icon.innerHTML = '';
-            status.innerText = 'Enter the P.O. Number to compare against the uploaded file.';
-            status.className = 'text-[13px] font-bold text-slate-600 mt-1 ml-3';
+            setMatchStatus(uid, 'Enter the P.O. Number to compare against the uploaded file.', 'text-slate-600');
             return;
         }
-
-        const isMatch = normalizePoNumber(typedValue) === normalizePoNumber(extractedPoNumberFromFile);
-
-        if (isMatch) {
-            icon.innerHTML = '<svg class="h-5 w-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>';
-            status.innerText = 'Matches the number found on the uploaded PO.';
-            status.className = 'text-[13px] font-bold text-emerald-600 mt-1 ml-3';
+        if (normalizePoNumber(typed) === normalizePoNumber(extracted)) {
+            icon.innerHTML = CHECK_SVG.replace('h-4 w-4', 'h-5 w-5');
+            setMatchStatus(uid, 'Matches the number found on the uploaded PO.', 'text-emerald-600');
         } else {
-            icon.innerHTML = '<svg class="h-5 w-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" /></svg>';
-            status.innerText = 'Does not match "' + extractedPoNumberFromFile + '" found on the uploaded PO.';
-            status.className = 'text-[13px] font-bold text-red-500 mt-1 ml-3';
+            icon.innerHTML = CROSS_SVG.replace('h-4 w-4', 'h-5 w-5');
+            setMatchStatus(uid, 'Does not match "' + extracted + '" found on the uploaded PO.', 'text-red-500');
         }
     }
 
-    function isPoNumberDuplicate(value) {
+    // Duplicate = already in the database OR typed on another PO tab of this same PR
+    function isPoNumberDuplicate(value, uid) {
         const isComplete = value.length === PR_PREFIX.length + 11;
-        return isComplete && normalizedExistingPoNumbers.includes(normalizePoNumber(value));
+        if (!isComplete) return false;
+        const norm = normalizePoNumber(value);
+        if (normalizedExistingPoNumbers.includes(norm)) return true;
+        return uidList().some((other) => other !== uid && normalizePoNumber(q(other, '.po-number').value) === norm);
     }
 
-    function updatePoDuplicateUI(input) {
-        const dupStatus = document.getElementById('po-duplicate-status');
-        const duplicate = isPoNumberDuplicate(input.value);
-
-        dupStatus.classList.toggle('hidden', !duplicate);
-        input.classList.toggle('border-red-500', duplicate);
-        input.classList.toggle('ring-2', duplicate);
-        input.classList.toggle('ring-red-500', duplicate);
-
+    function refreshAllDuplicateUI() {
+        uidList().forEach((uid) => {
+            const input = q(uid, '.po-number');
+            const dup = isPoNumberDuplicate(input.value, uid);
+            q(uid, '.po-duplicate-status').classList.toggle('hidden', !dup);
+            input.classList.toggle('border-red-500', dup);
+            input.classList.toggle('ring-2', dup);
+            input.classList.toggle('ring-red-500', dup);
+        });
         updateSubmitAvailability();
-        return duplicate;
     }
 
     function updateSubmitAvailability() {
         const submitBtn = document.getElementById('submit-btn');
-        const poNumberInput = document.getElementById('pr_number');
-        if (!submitBtn || !poNumberInput) return;
-        submitBtn.disabled = !poUploaded || isPoNumberDuplicate(poNumberInput.value);
+        if (!submitBtn) return;
+        const uids = uidList();
+        const allUploaded = uids.length > 0 && uids.every((uid) => poStates[uid].uploaded);
+        const anyDup = uids.some((uid) => poStates[uid].uploaded && isPoNumberDuplicate(q(uid, '.po-number').value, uid));
+        submitBtn.disabled = !allUploaded || anyDup;
     }
 
-    async function verifyPoFromUpload(imageSrc) {
-        const status = document.getElementById('po-match-status');
-        status.innerText = 'Reading uploaded PO to verify number...';
-        status.className = 'text-[13px] font-bold text-amber-600 mt-1 ml-3';
-
+    async function verifyPoFromUpload(uid, imageSrc) {
+        setMatchStatus(uid, 'Reading uploaded PO to verify number...', 'text-amber-600');
         try {
             const text = await runOCR(imageSrc, () => {});
-            extractedPoNumberFromFile = extractPoNumberFromText(text);
+            if (!poStates[uid]) return; // tab was removed while OCR ran
+            poStates[uid].extractedNumber = extractPoNumberFromText(text);
 
-            if (!extractedPoNumberFromFile) {
-                status.innerText = 'Could not detect a P.O. number on the uploaded file — enter it manually to compare, or check the document quality.';
-                status.className = 'text-[13px] font-bold text-amber-600 mt-1 ml-3';
-                document.getElementById('po-match-icon').innerHTML = '';
+            if (!poStates[uid].extractedNumber) {
+                setMatchStatus(uid, 'Could not detect a P.O. number on the uploaded file — enter it manually to compare, or check the document quality.', 'text-amber-600');
+                q(uid, '.po-match-icon').innerHTML = '';
                 return;
             }
-            checkPoMatch();
+            checkPoMatch(uid);
         } catch (err) {
-            status.innerText = 'Could not verify P.O. number: ' + err.message;
-            status.className = 'text-[13px] font-bold text-red-500 mt-1 ml-3';
+            if (poStates[uid]) setMatchStatus(uid, 'Could not verify P.O. number: ' + err.message, 'text-red-500');
         }
     }
 
-    function setFormFieldsEnabled(enabled) {
-        poUploaded = enabled;
-
-        document.getElementById('pr_number').disabled = !enabled;
-        document.getElementById('po_date').disabled = !enabled;
-        document.getElementById('supplier').disabled = !enabled;
-        document.getElementById('btn-add-row').disabled = !enabled;
-
-        document.querySelectorAll('#item-cards-container input:not(.stock-counter)').forEach((el) => {
-            el.disabled = !enabled;
-        });
-
-        const gate = document.getElementById('upload-po-gate-notice');
-        if (gate) gate.classList.toggle('hidden', enabled);
-
-        updateSubmitAvailability();
-    }
-
-    function getMinPoDateString() {
-        const d = new Date();
-        d.setMonth(d.getMonth() - 1);
-        return d.toISOString().split('T')[0];
-    }
-
-    function getMaxPoDateString() {
-        const d = new Date();
-        return d.toISOString().split('T')[0];
-    }
-
-    function initPoDateRestriction() {
-        const dateInput = document.getElementById('po_date');
-        if (!dateInput) return;
-        dateInput.min = getMinPoDateString();
-        dateInput.max = getMaxPoDateString();
-    }
-
-    function validatePoDate(input) {
-        if (input.value && input.max && input.value > input.max) {
-            showToast('P.O. Date cannot be in the future.', 'error', input);
-            input.value = '';
-            return;
-        }
-        if (input.value && input.min && input.value < input.min) {
-            showToast('P.O. Date cannot be more than 1 month in the past.', 'error', input);
-            input.value = '';
-        }
-    }
-
-    function importSpreadsheetItems(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            let workbook, sheet;
-            try {
-                const data = new Uint8Array(e.target.result);
-                workbook = XLSX.read(data, {
-                    type: 'array'
-                });
-                sheet = workbook.Sheets[workbook.SheetNames[0]];
-            } catch (err) {
-                showToast("Could not read that file. Make sure it's a valid Excel (.xlsx/.xls) or CSV file.", 'error', document.getElementById('btn-upload-trigger'));
-                return;
-            }
-
-            currentPOFile = null;
-            currentPOPreview = {
-                type: 'spreadsheet',
-                content: sheet,
-                fileName: file.name
-            };
-            setFormFieldsEnabled(true);
-            showPOPreview();
-            document.getElementById('btn-upload-trigger').classList.add('hidden');
-            document.getElementById('btn-view-po').classList.remove('hidden');
-            document.getElementById('btn-view-pr').classList.remove('hidden');
-
-            extractedPoNumberFromFile = null;
-            document.getElementById('po-match-icon').innerHTML = '';
-            document.getElementById('po-match-status').innerText = 'Spreadsheet previews can\'t be auto-verified — enter the P.O. Number manually.';
-            document.getElementById('po-match-status').className = 'text-[13px] font-bold text-amber-600 mt-1 ml-3';
-        };
-        reader.readAsArrayBuffer(file);
-    }
-
-    function addItemCard() {
-        const container = document.getElementById('item-cards-container');
-        const nextStockNum = container.getElementsByClassName('item-card').length + 1;
-
-        const card = document.createElement('div');
-        card.className = "item-card bg-slate-50 rounded-2xl p-6 border border-slate-100 relative group transition-all hover:border-blue-200 shadow-sm space-y-4 animate-in slide-in-from-right-4";
-        card.innerHTML = `
-            <button type="button" onclick="removeCard(this)" class="absolute -right-2 -top-2 bg-red-500 text-white w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shadow-lg hover:scale-110 transition-transform">×</button>
-            <div class="grid grid-cols-12 gap-4">
-                <div class="col-span-2"><label class="text-[13px] font-black text-slate-600 mb-1.5 block uppercase">Stock #</label>
-                <input type="text" name="stock_no[]" readonly class="stock-counter w-full p-3.5 rounded-xl border-none text-base font-black bg-blue-50 text-blue-600 shadow-sm text-center" value="${nextStockNum}"></div>
-                <div class="col-span-10"><label class="text-[13px] font-black text-slate-600 mb-1.5 block uppercase">Description</label>
-                <input type="text" name="description[]" class="w-full p-3.5 rounded-xl border-none text-base font-bold shadow-sm focus:ring-2 focus:ring-blue-500"></div>
-            </div>
-            <div class="grid grid-cols-3 gap-4">
-                <div><label class="text-[13px] font-black text-slate-600 mb-1.5 block uppercase">Qty</label>
-                <input type="number" name="quantity[]" oninput="calculateCard(this)" class="qty w-full p-3.5 rounded-xl border-none text-base font-black text-blue-600 text-center shadow-sm"></div>
-                <div><label class="text-[13px] font-black text-slate-600 mb-1.5 block uppercase">Unit Cost</label>
-                <input type="number" step="0.01" name="unit_cost[]" oninput="calculateCard(this)" class="cost w-full p-3.5 rounded-xl border-none text-base font-bold text-right shadow-sm"></div>
-                <div><label class="text-[13px] font-black text-blue-500 mb-1.5 block uppercase">Sub-Total (₱)</label>
-                <input type="text" name="amount[]" readonly class="amount w-full p-3.5 rounded-xl border-none bg-blue-100/50 font-black text-blue-700 text-base text-right" value="0.00"></div>
-            </div>`;
-        container.appendChild(card);
-    }
-
-    function removeCard(btn) {
-        btn.closest('.item-card').remove();
-        reindexStockNumbers();
-        calculateGrandTotal();
-    }
-
-    function reindexStockNumbers() {
-        const counters = document.getElementsByClassName('stock-counter');
-        for (let i = 0; i < counters.length; i++) {
-            counters[i].value = i + 1;
-        }
-    }
-
-    function calculateCard(input) {
-        const card = input.closest('.item-card');
-        const qty = card.querySelector('.qty').value || 0;
-        const cost = card.querySelector('.cost').value || 0;
-        const amount = parseFloat(qty) * parseFloat(cost);
-        card.querySelector('.amount').value = amount.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-        calculateGrandTotal();
-    }
-
-    function calculateGrandTotal() {
-        const amounts = document.getElementsByClassName('amount');
-        let total = 0;
-        for (let i = 0; i < amounts.length; i++) {
-            total += parseFloat(amounts[i].value.replace(/,/g, '') || 0);
-        }
-        document.getElementById('total-cost').value = total.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        });
-    }
-
-    function handlePOUpload(input) {
+    // ---------- upload handling (per PO) ----------
+    function handlePOUpload(input, uid) {
         if (!(input.files && input.files[0])) return;
         const file = input.files[0];
         const ext = file.name.split('.').pop().toLowerCase();
+        const st = poStates[uid];
+
+        st.file = file;
+        q(uid, '.po-filename').innerText = file.name;
+        st.extractedNumber = null;
+        q(uid, '.po-match-icon').innerHTML = '';
 
         if (SPREADSHEET_EXTS.includes(ext)) {
-            // NOTE: We used to clear input.value here after extracting items,
-            // which meant the spreadsheet Supply uploaded was never actually
-            // submitted with the form — po_attachment ended up null even
-            // though a file was uploaded. Now we leave the native file input
-            // populated so it still gets sent to PrStore() as the attachment,
-            // and the inspector can view/download the file Supply provided.
-            importSpreadsheetItems(file);
+            // Keep the native file input populated so the spreadsheet is still
+            // submitted with the form as this PO's attachment.
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                let sheet;
+                try {
+                    const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                    sheet = wb.Sheets[wb.SheetNames[0]];
+                } catch (err) {
+                    showToast("Could not read that file. Make sure it's a valid Excel (.xlsx/.xls) or CSV file.", 'error', document.getElementById('btn-upload-trigger'));
+                    return;
+                }
+                st.preview = { type: 'spreadsheet', content: sheet, fileName: file.name };
+                setPoFieldsEnabled(uid, true);
+                setActivePo(uid);
+                setMatchStatus(uid, "Spreadsheet previews can't be auto-verified — enter the P.O. Number manually.", 'text-amber-600');
+            };
+            reader.readAsArrayBuffer(file);
             return;
         }
 
-        currentPOFile = file;
-        setFormFieldsEnabled(true);
-        const poUrl = URL.createObjectURL(currentPOFile);
-        currentPOPreview = {
-            type: ext,
-            content: poUrl,
-            fileName: file.name
-        };
-
-        document.getElementById('btn-upload-trigger').classList.add('hidden');
-        document.getElementById('btn-view-po').classList.remove('hidden');
-        document.getElementById('btn-view-pr').classList.remove('hidden');
-        showPOPreview();
-
-        extractedPoNumberFromFile = null;
-        document.getElementById('po-match-icon').innerHTML = '';
+        const poUrl = URL.createObjectURL(file);
+        st.preview = { type: ext, content: poUrl, fileName: file.name };
+        setPoFieldsEnabled(uid, true);
+        setActivePo(uid);
 
         if (IMAGE_EXTS.includes(ext)) {
-            verifyPoFromUpload(poUrl);
+            verifyPoFromUpload(uid, poUrl);
         } else {
-            document.getElementById('po-match-status').innerText = 'Automatic verification only works on image uploads (JPG/PNG) — this is a PDF, so please check the number manually.';
-            document.getElementById('po-match-status').className = 'text-[13px] font-bold text-amber-600 mt-1 ml-3';
+            setMatchStatus(uid, 'Automatic verification only works on image uploads (JPG/PNG) — this is a PDF, so please check the number manually.', 'text-amber-600');
         }
+    }
+
+    // ---------- item rows (per PO) ----------
+    function addItemCard(uid, initial = false) {
+        const st = poStates[uid];
+        const container = q(uid, '.item-cards-container');
+        const n = container.getElementsByClassName('item-card').length + 1;
+        const k = ++st.itemSeq;
+        container.insertAdjacentHTML('beforeend', itemCardHtml(uid, k, n, initial));
+        if (!initial) container.lastElementChild.classList.add('animate-in', 'slide-in-from-right-4');
+        updateItemCount(uid);
+    }
+
+    function removeCard(btn, uid) {
+        btn.closest('.item-card').remove();
+        reindexStockNumbers(uid);
+        calculatePoTotal(uid);
+        updateItemCount(uid);
+    }
+
+    function reindexStockNumbers(uid) {
+        q(uid, '.item-cards-container').querySelectorAll('.stock-counter').forEach((el, i) => {
+            el.value = i + 1;
+        });
+    }
+
+    const fmtMoney = (n) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function calculateCard(input, uid) {
+        const card = input.closest('.item-card');
+        const qty = parseFloat(card.querySelector('.qty').value) || 0;
+        const cost = parseFloat(card.querySelector('.cost').value) || 0;
+        card.querySelector('.amount').value = fmtMoney(qty * cost);
+        calculatePoTotal(uid);
+    }
+
+    function calculatePoTotal(uid) {
+        let total = 0;
+        q(uid, '.item-cards-container').querySelectorAll('.amount').forEach((el) => {
+            total += parseFloat(el.value.replace(/,/g, '') || 0);
+        });
+        q(uid, '.po-total').value = fmtMoney(total);
+        updateOverallSummary();
+    }
+
+    function updateOverallSummary() {
+        const uids = uidList();
+        let sum = 0;
+        uids.forEach((uid) => {
+            sum += parseFloat(q(uid, '.po-total').value.replace(/,/g, '') || 0);
+        });
+        document.getElementById('overall-total').innerText = fmtMoney(sum);
+        document.getElementById('overall-po-count').innerText = uids.length + (uids.length === 1 ? ' PO' : ' POs');
+    }
+
+    // ---------- OCR "Extract PO Items" (uses the active PO tab) ----------
+    async function extractPOItemDescriptions() {
+        const extractBtn = document.getElementById('btn-extract-text');
+        const st = poStates[activeUid];
+
+        if (st.preview && st.preview.type === 'spreadsheet') {
+            showToast("This is a spreadsheet preview, not a scannable image — enter item descriptions manually or copy from the spreadsheet.", 'info', extractBtn);
+            return;
+        }
+        if (!st.file) {
+            showToast("Please upload a signed PO image for this PO first.", 'warning', extractBtn);
+            return;
+        }
+        const ext = st.file.name.split('.').pop().toLowerCase();
+        if (!IMAGE_EXTS.includes(ext)) {
+            showToast("Item description extraction only works on image uploads (JPG/PNG) — this file is a " + ext.toUpperCase() + ".", 'warning', extractBtn);
+            return;
+        }
+
+        const overlay = document.getElementById('ocr-loading-overlay');
+        const loadingText = document.getElementById('ocr-loading-text');
+        const panel = document.getElementById('ocr-panel');
+        const output = document.getElementById('ocr-output');
+
+        overlay.classList.remove('hidden');
+        overlay.classList.add('flex');
+        panel.classList.remove('hidden');
+        output.value = "";
+
+        try {
+            const text = await runOCR(st.preview.content, (m) => {
+                loadingText.innerText = m.status === 'recognizing text' ?
+                    'Reading PO... ' + Math.round(m.progress * 100) + '%' :
+                    m.status;
+            });
+            const lines = text.split('\n').map((l) => l.trim()).filter(looksLikeDescriptionLine);
+            output.value = lines.length === 0 ?
+                "(No item descriptions detected on the uploaded PO — try a clearer photo, or enter them manually.)" :
+                lines.join('\n');
+        } catch (err) {
+            output.value = "Could not read text from the uploaded PO: " + err.message;
+        } finally {
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
+        }
+    }
+
+    // ---------- submit validation across ALL POs ----------
+    function validateBeforeSubmit(e) {
+        const uids = uidList();
+        for (let i = 0; i < uids.length; i++) {
+            const uid = uids[i];
+            const label = 'PO ' + (i + 1);
+            const fail = (msg, el) => {
+                e.preventDefault();
+                setActivePo(uid);
+                showToast(label + ': ' + msg, 'error', el || document.getElementById('submit-btn'));
+                if (el && el.focus) el.focus();
+                return false;
+            };
+
+            if (!poStates[uid].uploaded) return fail('upload the signed PO file first.');
+
+            const num = q(uid, '.po-number');
+            if (!new RegExp('^' + PR_PREFIX + '\\d{4}_\\d{2}_\\d{3}$').test(num.value)) return fail('P.O. Number must look like SO_A_YYYY_MM_XXX.', num);
+            if (isPoNumberDuplicate(num.value, uid)) return fail('this P.O. Number is already in use.', num);
+
+            const date = q(uid, '.po-date');
+            if (!date.value) return fail('P.O. Date is required.', date);
+
+            const supplier = q(uid, '.po-supplier');
+            if (!supplier.value.trim()) return fail('Supplier is required.', supplier);
+
+            const cards = q(uid, '.item-cards-container').querySelectorAll('.item-card');
+            for (const card of cards) {
+                const stock = card.querySelector('.stock-counter').value;
+                const desc = card.querySelector('.item-desc');
+                const qty = card.querySelector('.qty');
+                const cost = card.querySelector('.cost');
+                if (!desc.value.trim()) return fail('item #' + stock + ' needs a description.', desc);
+                if (!(parseFloat(qty.value) > 0)) return fail('item #' + stock + ' needs a quantity above 0.', qty);
+                if (!(parseFloat(cost.value) >= 0) || cost.value === '') return fail('item #' + stock + ' needs a unit cost.', cost);
+            }
+        }
+        return true;
     }
 
     document.getElementById('btn-view-pr').addEventListener('click', () => displayInViewer(currentPRFile, currentPRExt, "Purchase Request"));
     document.getElementById('btn-view-po').addEventListener('click', showPOPreview);
 
-    initPoDateRestriction();
-    setFormFieldsEnabled(false);
+    // ---------------------------------------------------------------
+    //  Keep this page clear of the fixed sidebar.
+    //  Finds the fixed/sticky sidebar and, if it covers the left edge of
+    //  this page's content, pads the page so everything stays visible.
+    //  Re-runs on resize, sidebar resize, and after any click (sidebar toggle).
+    // ---------------------------------------------------------------
+    function findSidebar() {
+        const candidates = document.querySelectorAll('aside, nav, div');
+        for (const el of candidates) {
+            if (el.closest('#procurement-root')) continue;
+            const cs = getComputedStyle(el);
+            if (cs.position !== 'fixed' && cs.position !== 'sticky') continue;
+            const r = el.getBoundingClientRect();
+            if (r.left < 80 && r.width > 50 && r.width < 500 && r.height > window.innerHeight * 0.6) return el;
+        }
+        return null;
+    }
+
+    function fixSidebarOverlap() {
+        const root = document.getElementById('procurement-root');
+        if (!root) return;
+        root.style.paddingLeft = '';
+        const sb = findSidebar();
+        if (!sb) return;
+        const overlap = sb.getBoundingClientRect().right - root.getBoundingClientRect().left;
+        if (overlap > 0) root.style.paddingLeft = (overlap + 16) + 'px';
+    }
+
+    window.addEventListener('resize', fixSidebarOverlap);
+    document.addEventListener('click', () => setTimeout(fixSidebarOverlap, 400));
+    window.addEventListener('load', fixSidebarOverlap);
+    fixSidebarOverlap();
+    const _sb = findSidebar();
+    if (_sb && 'ResizeObserver' in window) new ResizeObserver(fixSidebarOverlap).observe(_sb);
+
+    addPo(false); // start with PO 1
+    updateSubmitAvailability();
 
     function exitProcessing() {
         if (confirm("Discard entries and exit?")) location.reload();
@@ -839,6 +963,9 @@
 </script>
 
 <style>
+    .item-card input[type=number]::-webkit-outer-spin-button,
+    .item-card input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    .item-card input[type=number] { -moz-appearance: textfield; }
     .custom-scrollbar::-webkit-scrollbar {
         width: 5px;
         height: 5px;
@@ -858,4 +985,3 @@
         pointer-events: none;
     }
 </style>
-@endsection
