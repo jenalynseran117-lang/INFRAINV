@@ -134,8 +134,9 @@ Route::namespace('App\Http\Controllers\Supply')
         // 1. Gawin nating Controller-based ang main dashboard route
         Route::get('/dashboard', 'SupplyController@index')->name('dashboard');
 
-        Route::get('/precurement', 'SupplyController@PreIndex')->name('precurement');
-        Route::post('/precurement', 'SupplyController@PrStore')->name('PrStore');
+        Route::get('/procurement', 'SupplyController@PreIndex')->name('precurement');
+        Route::redirect('/precurement', '/supply/procurement')->name('precurement.legacy');
+        Route::post('/procurement', 'SupplyController@PrStore')->name('PrStore');
 
         Route::get('/supply/procurement', 'SupplyController@procurementPage')->name('supply.procurement');
         Route::get('/joint-inspection', 'SupplyController@UploadActualItemIndex')->name('UploadActualItem');
