@@ -9,6 +9,7 @@ use App\Models\PurchaseOrder;
 use App\Models\InspectionLog;
 use App\Models\Project;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Schema;
 use Carbon\Carbon;
 
@@ -52,6 +53,31 @@ class InspectorController extends Controller
         })->values();
 
         return view('inspector.Inspect.InspectIndex', compact('purchaseOrders', 'statusFilter'));
+    }
+
+    public function deliveryPhoto($id, $index)
+    {
+        $purchaseOrder = PurchaseOrder::findOrFail($id);
+        $item = $purchaseOrder->items[$index] ?? null;
+        $photoPath = $item['delivery_photo'] ?? null;
+
+        abort_unless(is_string($photoPath) && str_starts_with($photoPath, 'delivery_photos/'), 404);
+
+        $extension = strtolower(pathinfo($photoPath, PATHINFO_EXTENSION));
+        $contentType = match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            default => abort(404),
+        };
+
+        $disk = Storage::disk('public');
+        abort_unless($disk->exists($photoPath), 404);
+
+        return response($disk->get($photoPath), 200, [
+            'Content-Type' => $contentType,
+            'Content-Disposition' => 'inline; filename="' . basename($photoPath) . '"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     /**

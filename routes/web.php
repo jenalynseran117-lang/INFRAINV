@@ -175,6 +175,7 @@ Route::namespace('App\Http\Controllers\Inspector')
         Route::get('/dashboard', 'InspectorController@index')->name('dashboard');
 
         Route::get('/inspect', 'InspectorController@InspectIndex')->name('inspect');
+        Route::get('/purchase-order/{id}/item/{index}/delivery-photo', 'InspectorController@deliveryPhoto')->name('item.deliveryPhoto');
 
         Route::get('/Project', 'InspectorController@ProjectIndex')->name('Project');
 

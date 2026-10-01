@@ -364,6 +364,8 @@
         });
     });
 
+    const deliveryPhotoUrlTemplate = @json(route('inspector.item.deliveryPhoto', ['id' => '__PO_ID__', 'index' => '__ITEM_INDEX__']));
+
     function openInspectModal(po) {
         window.currentPreview = po.po_attachment || '';
         window.currentPoId = po.id;
@@ -424,10 +426,13 @@
                 }
 
                 const photoPath = item.delivery_photo || '';
+                const photoUrl = photoPath
+                    ? deliveryPhotoUrlTemplate.replace('__PO_ID__', encodeURIComponent(po.id)).replace('__ITEM_INDEX__', index)
+                    : '';
                 const photoCell = photoPath
-                    ? `<button type="button" onclick="openItemPhoto('${photoPath}', '${(item.description || 'Item').replace(/'/g, "\\'")}', ${index})"
+                    ? `<button type="button" onclick="openItemPhoto('${photoUrl}', '${(item.description || 'Item').replace(/'/g, "\\'")}', ${index})"
                            class="w-10 h-10 rounded-lg overflow-hidden border border-gray-200 hover:ring-2 hover:ring-blue-500 transition mx-auto block">
-                           <img src="/storage/${photoPath}" class="w-full h-full object-cover" />
+                           <img src="${photoUrl}" class="w-full h-full object-cover" />
                        </button>`
                     : `<span class="text-[10px] font-bold text-gray-300 uppercase">Not submitted</span>`;
 
@@ -611,9 +616,9 @@
         document.getElementById('zoomViewer').classList.add('hidden');
     }
 
-    function openItemPhoto(path, label, index) {
+    function openItemPhoto(photoUrl, label, index) {
         document.getElementById('itemPhotoTitle').innerText = label || 'Delivery Photo';
-        document.getElementById('itemPhotoImg').src = "/storage/" + path;
+        document.getElementById('itemPhotoImg').src = photoUrl;
         document.getElementById('itemPhotoViewer').classList.remove('hidden');
 
         // Once the inspector actually opens a delivery photo, unlock that
